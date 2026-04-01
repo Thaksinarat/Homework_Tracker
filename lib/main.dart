@@ -1,122 +1,164 @@
+// import ต่าง ๆ
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' hide context;
+import 'dart:io' show Platform;
+import 'dart:io' as io;
 
-void main() {
-  runApp(const MyApp());
-}
+// เกี่ยวกับฐานข้อมูล
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+// ข้อมูล
+// Class การบ้าน
+class Homework {
+  // Attribute
+  int? hwID;
+  String? hwName;
+  String? hwLesson;
+  String? note;
+  String? dueDate;
+  bool? status;
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+  // Default Constructor
+  Homework ({
+    this.hwID,
+    required this.hwName,
+    required this.hwLesson,
+    required this.dueDate,
+    required this.status,
+    this.note
+  });
+
+  // Constructor
+  Homework.fromMap(Map<dynamic, dynamic> data) :
+      hwID = data['hwID'],
+        hwName = data['hwName'],
+        hwLesson = data['hwLesson'],
+        note = data['note'],
+        dueDate = data['dueDate'],
+        status = data['status'] == 1; // true = 1
+
+  // Method
+  Map<String, dynamic> toMap() {
+    return {
+      'hwID': hwID,
+      'hwName': hwName,
+      'hwLesson': hwLesson,
+      'note': note,
+      'dueDate': dueDate,
+      'status': status == true ? 1:0,
+    };
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+// Class ฐานข้อมูล
+class DBHelper {
+  static Database? _database;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  // Function เรียกใช้งาน db
+  Future<Database?> get database async {
+    if (_database != null) {
+      return _database!;
+    }
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+    _database = await initDatabase();
+    return _database!;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+  // Function สร้าง db
+  initDatabase() async {
+    io.Directory directory = await getApplicationDocumentsDirectory();
+    String path = join(directory.path, 'HomeworkTracker.db');
+
+    var db = await openDatabase(path, version: 1, onCreate: _onCreate);
+    return db;
+  }
+
+  // สร้าง Table
+  _onCreate(Database db, int version) async {
+    await db.execute(
+      'CREATE TABLE homework(hwID INTEGER PRIMARY KEY AUTOINCREMENT, hwName TEXT, hwLesson TEXT, note TEXT, dueDate DATE, status BIT'
     );
+  }
+
+  // เพิ่มการบ้านลงใน Table
+  Future<Homework> insert(Homework hw) async {
+    var db = await database;
+
+    int id = await db!.insert('HomeworkTracker', hw.toMap());
+    hw.hwID = id;
+    return hw;
+  }
+
+  // ดึงรายการการบ้านใน Table
+  Future<List<Homework>> getHomeworkList() async {
+    var db = await database;
+
+    final List<Map<String, Object?>> queryResult = await db!.query('HomeworkTracker');
+    return queryResult.map((result) => Homework.fromMap(result)).toList();
+  }
+
+  // แก้ไขการบ้าน
+  Future<int> updateHomework(Homework hw) async {
+    var db = await database;
+
+    return await db!.update('HomeworkTracker', hw.toMap(), where: "hwID = ?", whereArgs: [hw.hwID]);
+  }
+
+  // ลบการบ้าน
+  Future<int> deleteHomework(int hwID) async {
+    var db = await database;
+
+    return await db!.delete('homework', where: "hwID = ?", whereArgs: [hwID]);
+  }
+}
+
+// Provider
+class hwProvider extends ChangeNotifier {
+  DBHelper dbHelper = DBHelper();
+
+  // List การบ้าน
+  List<Homework> homeworks = [];
+  // List รายวิชา
+  List<String> lessons = ['English'];
+
+  // Fuction ดึงรายการการบ้านใหม่
+  Future<void> fetchHomework() async {
+    homeworks = await dbHelper.getHomeworkList();
+
+    for (var hw in homeworks) {
+      if (hw.hwLesson != null && !lessons.contains(hw.hwLesson)) {
+        lessons.add(hw.hwLesson!);
+      }
+    }
+
+    notifyListeners();
+  }
+
+  // Function เพิ่มการบ้าน
+  Future<void> addHomework(Homework hw) async {
+    await dbHelper.insert(hw);
+    await fetchHomework();
+  }
+
+  // Function แก้ไขการบ้าน
+  Future<void> updateHomework(Homework hw) async {
+    await dbHelper.updateHomework(hw);
+    await fetchHomework();
+  }
+
+  // Function ลบการบ้าน
+  Future<void> deleteHomework(int id) async {
+    await dbHelper.deleteHomework(id);
+    await fetchHomework();
+  }
+
+  // Function เปลี่ยนสถานะการบ้าน
+  Future<void> changeStatus(Homework hw) async {
+    hw.status = !(hw.status ?? false);
+    await fetchHomework();
   }
 }
