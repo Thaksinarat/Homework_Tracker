@@ -119,11 +119,52 @@ class DBHelper {
 // Provider
 class hwProvider extends ChangeNotifier {
   DBHelper dbHelper = DBHelper();
-
   // List การบ้าน
   List<Homework> homeworks = [];
   // List รายวิชา
   List<String> lessons = ['English'];
+
+  // (MainScreen)เปลี่ยนแท็บหน้า MainScreen
+  int selectedMainIndex = 0;
+  void setMainIndex(int index) {
+    selectedMainIndex = index;
+    notifyListeners();
+  }
+
+  // (HomeTab)ตัวกรองวิชาใน HomeTab
+  String selectedFilterLesson = 'All';
+  void setFilterLesson(String lesson) {
+    selectedFilterLesson = lesson;
+    notifyListeners();
+  }
+  // (AddEditHomework) ฟอร์ม
+  String formDate = 'Pick a Date!';
+  String? formLesson;
+  // set เวลา
+  void setFormDate(String date) {
+    formDate = date;
+    notifyListeners();
+  }
+  // set รายวิชา
+  void setFormLesson(String? lesson) {
+    formLesson = lesson;
+    notifyListeners();
+  }
+  // reset ค่าก่อนเปิดหน้าฟอร์มใหม่
+  void initFormState(Homework? hw) {
+    // ในกรณีที่เป็นการแก้ไขฟอร์ม
+    if (hw != null) {
+      formDate = hw.dueDate ?? 'Pick a Date!';
+      formLesson = hw.hwLesson;
+    }
+    // ในกรณีที่เป็นการเพิ่มฟอร์ม
+    else {
+      formDate = 'Pick a Date!';
+      formLesson = lessons.isNotEmpty ? lessons.first : null;
+    }
+    notifyListeners();
+  }
+
 
   // Fuction ดึงรายการการบ้านใหม่
   Future<void> fetchHomework() async {
@@ -134,7 +175,6 @@ class hwProvider extends ChangeNotifier {
         lessons.add(hw.hwLesson!);
       }
     }
-
     notifyListeners();
   }
 
@@ -162,3 +202,287 @@ class hwProvider extends ChangeNotifier {
     await fetchHomework();
   }
 }
+
+// Date picker dialog
+class DatePickerDialog extends StatelessWidget {
+  final String currentDate;
+  final Function(String) onDateSelected;
+
+  const DatePickerDialog({Key? key, required this.currentDate, required this.onDateSelected}) : super(key: key);
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2026),
+      lastDate: DateTime(2126)
+    );
+
+    if (picked != null) {
+      String date = DateFormat('dd mm yyyy').format(picked);
+      onDateSelected(date);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () => _selectDate(context),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24.0),
+          border: Border.all(color: Colors.blueGrey),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Icon(Icons.calendar_today_rounded, color: Colors.blueGrey, fontWeight: FontWeight.bold,),
+            SizedBox(width: 8.0,),
+            Text('$currentDate', style: TextStyle(fontWeight: FontWeight.bold),)
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void main() {
+  // เพื่อให้สามารถใช้งาน database บน PC ได้
+  WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => hwProvider(),
+      child: const MyApp(),
+    )
+  );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Homework Tracker',
+      theme: ThemeData(
+        fontFamily: 'Noto Sans Thai',
+        textTheme: TextTheme(
+          // แสดงชื่อแอปบน banner
+          displayMedium: TextStyle(fontSize: 24.0, fontWeight: FontWeight.w800,),
+          // ชื่อการบ้าน
+          headlineMedium: TextStyle(fontSize: 20.0, fontWeight: FontWeight.w500,),
+          // ชื่อวิชา
+          titleMedium: TextStyle(fontSize: 18.0),
+          // รายละเอียดอื่น ๆ บทแอป
+          bodyMedium: TextStyle(fontSize: 16.0)
+        ),
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.lightBlue,
+            background: Colors.white,
+            primary: Colors.lightBlue,
+            secondary: Colors.yellowAccent,
+        ),
+      ),
+      home: MainScreen(),
+    );
+  }
+}
+
+
+class MainScreen extends StatefulWidget {
+  @override
+  _MainScreenState createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Provider.of<hwProvider>(context, listen: false).fetchHomework();
+  }
+
+  void _onItemTapped(int index) {
+    // ถ้า index = 1 จะไปยังหน้าเพิ่มการบ้าน
+    if (index == 1) {
+      Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AddEditHomework())
+      );
+    } else {
+      Provider.of<hwProvider>(context, listen: false).setMainIndex(index);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<hwProvider>(
+      builder: (context, provider, child) {
+        // List ของหน้าเมนูต่าง ๆ
+        final List<Widget> pages = [
+          const HomeTab(isCompleted: false),
+          const SizedBox(),
+          const HomeTab(isCompleted: true)
+        ];
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.background,
+          body: pages[provider.selectedMainIndex],
+          bottomNavigationBar: BottomNavigationBar(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            currentIndex: provider.selectedMainIndex == 2 ? 2 : 0,
+            onTap: _onItemTapped,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            items: [
+              BottomNavigationBarItem(icon: Icon(Icons.home, size: 32, ), label: 'Home', activeIcon: Icon(Icons.pets, size: 32, color: Theme.of(context).colorScheme.inversePrimary,)),
+              BottomNavigationBarItem(icon: Icon(Icons.add_circle, size: 48, ), label: 'Add',),
+              BottomNavigationBarItem(icon: Icon(Icons.library_add_check, size: 32, ), label: 'Completed', activeIcon: Icon(Icons.pets, size: 32, color: Theme.of(context).colorScheme.inversePrimary,))
+            ],
+          ),
+        );
+      }
+    );
+  }
+}
+
+// หน้า  Home และ หน้า completed
+class HomeTab extends StatefulWidget {
+  final bool isCompleted;
+  const HomeTab({Key? key, required this.isCompleted}) : super(key : key);
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<hwProvider>(
+      builder: (context, provider, child) {
+        // กรองสถานะงาน
+        var displayList = provider.homeworks.where((hw) => (hw.status ?? false) == widget.isCompleted).toList();
+
+        // กรองตามวิชา
+        if (provider.selectedFilterLesson != "All") {
+          displayList = displayList.where((hw) => hw.hwLesson == provider.selectedFilterLesson).toList();
+        }
+        // วันที่วันนี้
+        String today = DateFormat("dd MMMM yyyy").format(DateTime.now());
+        // รายการรายวิชาในเครื่องมือกรอง
+        List<String> filterLessons = ["All", ...provider.lessons];
+
+        // Banner
+        return SafeArea(
+          child: Column(
+            children: <Widget>[
+              Container(
+                color: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          widget.isCompleted ? 'Completed Homework' : 'Homework Tracker',
+                          style: Theme.of(context).textTheme.displayMedium,
+                        ),
+                        SizedBox(height: 16,),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Icon(widget.isCompleted ? Icons.check_box_rounded : Icons.calendar_today_rounded ),
+                            SizedBox(width: 8,),
+                            Text(
+                              widget.isCompleted ? 'You completed ${displayList.length} tasks!' : 'Today - ${today}',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            )
+                          ],
+                        )
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text("Lesson", style: Theme.of(context).textTheme.bodyMedium,),
+                    SizedBox(width: 8,),
+                    // ตัวกรอง
+                    Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                          border: Border.all(),
+                          borderRadius: BorderRadius.circular(24.0)
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: provider.selectedFilterLesson,
+                          items: filterLessons.map((String lesson) {
+                            return DropdownMenuItem<String>(
+                              value: lesson,
+                              child: Text(lesson, style: Theme.of(context).textTheme.bodyMedium,),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              provider.setFilterLesson(newValue);
+                            }
+                          },
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class AddEditHomework extends StatefulWidget {
+  final Homework? homework;
+
+  const AddEditHomework({Key? key, this.homework}) : super(key: key);
+
+  @override
+  _AddEditHomeworkState createState() => _AddEditHomeworkState();
+}
+
+class _AddEditHomeworkState extends State<AddEditHomework> {
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    throw UnimplementedError();
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
