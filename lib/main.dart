@@ -31,24 +31,76 @@ class DatePickerFragment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(width: 400,
-      child: ElevatedButton(
-        onPressed: () => _selectDate(context),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24.0),
-            border: Border.all(color: Colors.blueGrey),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Icon(Icons.calendar_today_rounded, color: Colors.blueGrey, fontWeight: FontWeight.bold,),
-              SizedBox(width: 8.0,),
-              Text('$currentDate', style: TextStyle(fontWeight: FontWeight.bold),)
-            ],
-          ),
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        padding: EdgeInsets.zero
+      ),
+      onPressed: () => _selectDate(context),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24.0),
+          border: Border.all(color: Colors.blueGrey),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Icon(Icons.calendar_today_rounded, color: Colors.blueGrey, fontWeight: FontWeight.bold,),
+            SizedBox(width: 8.0,),
+            Text('$currentDate', style: TextStyle(fontWeight: FontWeight.bold),)
+          ],
+        ),
+      ),
+    );
+  }
+}
+// Time Picker dialog
+class TimePickerFragment extends StatelessWidget {
+  final String currentTime;
+  final Function(String) onTimeSelected;
+
+  const TimePickerFragment({Key? key, required this.currentTime, required this.onTimeSelected}) : super(key: key);
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (picked != null) {
+      if (!context.mounted) return;
+      // แปลง TimeOfDay ให้เป็น String แบบอ่านง่าย (เช่น 10:30 AM)
+      String time = picked.format(context);
+      onTimeSelected(time);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent, // ให้พื้นหลังโปร่งใสเพื่อโชว์ขอบเขต Container
+        shadowColor: Colors.transparent,
+        padding: EdgeInsets.zero,
+      ),
+      onPressed: () => _selectTime(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24.0),
+          border: Border.all(color: Colors.blueGrey),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            const Icon(Icons.access_time_rounded, color: Colors.blueGrey, fontWeight: FontWeight.bold,),
+            const SizedBox(width: 8.0,),
+            Text(currentTime, style: const TextStyle(fontWeight: FontWeight.bold,),)
+          ],
         ),
       ),
     );
@@ -61,6 +113,7 @@ class Homework {
   String? hwLesson;
   String? note;
   String? dueDate;
+  String? dueTime;
   bool? status;
 
   Homework ({
@@ -68,6 +121,7 @@ class Homework {
     required this.hwName,
     required this.hwLesson,
     required this.dueDate,
+    required this.dueTime,
     required this.status,
     this.note
   });
@@ -78,6 +132,7 @@ class Homework {
         hwLesson = data['hwLesson'],
         note = data['note'],
         dueDate = data['dueDate'],
+        dueTime = data['dueTime'],
         status = data['status'] == 1;
 
   Map<String, dynamic> toMap() {
@@ -87,6 +142,7 @@ class Homework {
       'hwLesson': hwLesson,
       'note': note,
       'dueDate': dueDate,
+      'dueTime': dueTime,
       'status': status == true ? 1:0,
     };
   }
@@ -107,7 +163,7 @@ class DBHelper {
 
   initDatabase() async {
     io.Directory directory = await getApplicationDocumentsDirectory();
-    String path = join(directory.path, 'homework.db');
+    String path = join(directory.path, 'homeworkTracker.db');
 
     var db = await openDatabase(path, version: 1, onCreate: _onCreate);
     return db;
@@ -115,7 +171,7 @@ class DBHelper {
 
   _onCreate(Database db, int version) async {
     await db.execute(
-        'CREATE TABLE homework(hwId INTEGER PRIMARY KEY AUTOINCREMENT, hwName TEXT, hwLesson TEXT, note TEXT, dueDate DATE, status BIT)'
+        'CREATE TABLE homework(hwId INTEGER PRIMARY KEY AUTOINCREMENT, hwName TEXT, hwLesson TEXT, note TEXT, dueDate DATE, dueTime TIME, status BIT)'
     );
   }
 
@@ -398,13 +454,21 @@ class _HomeTabState extends State<HomeTab> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                        border: Border.all(),
-                                        borderRadius: BorderRadius.circular(20)
-                                    ),
-                                    child: Text('📅 ${hw.dueDate}'),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: <Widget>[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                            border: Border.all(),
+                                            borderRadius: BorderRadius.circular(20)
+                                        ),
+                                        // เพิ่มการแสดงเวลาต่อจากวันที่
+                                        child: Text(
+                                          '📅 ${hw.dueDate} ${hw.dueTime != null && hw.dueTime!.isNotEmpty ? '⏰ ${hw.dueTime}' : ''}',
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 8),
                                   Text(hw.hwName ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -452,6 +516,7 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   String _selectedDate = 'Pick a date!';
+  String _selectedTime = 'Pick a Time!';
   String? _selectedLesson;
 
   @override
@@ -467,6 +532,7 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
       _nameController.text = widget.homework!.hwName ?? '';
       _noteController.text = widget.homework!.note ?? '';
       _selectedDate = widget.homework!.dueDate ?? 'Pick a date!';
+      _selectedTime = widget.homework!.dueTime ?? 'Pick a Time!';
 
       if (provider.lessons.contains(widget.homework!.hwLesson)) {
         _selectedLesson = widget.homework!.hwLesson;
@@ -502,6 +568,7 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
       hwName: _nameController.text,
       hwLesson: _selectedLesson ?? '',
       dueDate: _selectedDate == 'Pick a date!' ? DateFormat('dd MMMM yyyy').format(DateTime.now()) : _selectedDate,
+      dueTime: _selectedTime == 'Pick a time' ? '': _selectedTime,
       status: widget.homework?.status ?? false,
       note: _noteController.text,
     );
@@ -580,14 +647,30 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ปุ่มเลือกวันที่
-            DatePickerFragment(
-              currentDate: _selectedDate,
-              onDateSelected: (newDate) {
-                setState(() {
-                  _selectedDate = newDate;
-                });
-              },
+            Row(
+              children: <Widget>[
+                Expanded(child:
+                  // เลือกวันที่
+                  DatePickerFragment(
+                      currentDate: _selectedDate,
+                      onDateSelected: (newDate) {
+                        setState(() {
+                          _selectedDate = newDate;
+                        });
+                      }),
+                ),
+                const SizedBox(width: 8,),
+                Expanded(child:
+                  // เลือกเวลา
+                  TimePickerFragment(
+                      currentTime: _selectedTime,
+                      onTimeSelected: (newTime) {
+                        setState(() {
+                          _selectedTime = newTime;
+                        });
+                      })
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
