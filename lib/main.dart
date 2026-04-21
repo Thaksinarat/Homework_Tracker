@@ -739,8 +739,11 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: isEditing ? Colors.redAccent[400] : Colors.blue[400],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))
+                    backgroundColor: isEditing ? Colors.white : Colors.blue[400],
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        side: isEditing ? BorderSide(color: Colors.redAccent, width: 2) : BorderSide.none
+                    ),
                 ),
                 onPressed: () async {
                   if (isEditing) {
@@ -753,7 +756,7 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
                 },
                 child: Text(
                   isEditing ? 'Remove' : 'New',
-                  style: const TextStyle(color: Colors.black, fontSize: 18),
+                  style: TextStyle(color: isEditing ? Colors.redAccent[400] : Colors.black)
                 ),
               ),
             )
