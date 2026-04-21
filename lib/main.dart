@@ -463,7 +463,6 @@ class _HomeTabState extends State<HomeTab> {
                                             border: Border.all(),
                                             borderRadius: BorderRadius.circular(20)
                                         ),
-                                        // เพิ่มการแสดงเวลาต่อจากวันที่
                                         child: Text(
                                           '📅 ${hw.dueDate} ${hw.dueTime != null && hw.dueTime!.isNotEmpty ? '⏰ ${hw.dueTime}' : ''}',
                                         ),
@@ -481,7 +480,7 @@ class _HomeTabState extends State<HomeTab> {
                               child: Container(
                                 width: 30, height: 30,
                                 decoration: BoxDecoration(
-                                    color: (hw.status ?? false) ? Colors.lightGreen : Colors.white,
+                                    color: (hw.status ?? false) ? Colors.yellow : Colors.white,
                                     border: Border.all(width: 2),
                                     borderRadius: BorderRadius.circular(4)
                                 ),
@@ -537,20 +536,6 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
       if (provider.lessons.contains(widget.homework!.hwLesson)) {
         _selectedLesson = widget.homework!.hwLesson;
       }
-    }
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = DateFormat('dd MMMM yyyy').format(picked);
-      });
     }
   }
 
@@ -739,7 +724,7 @@ class _AddEditHomeworkPageState extends State<AddEditHomeworkPage> {
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: isEditing ? Colors.white : Colors.blue[400],
+                    backgroundColor: isEditing ? Colors.white : Colors.yellow,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25),
                         side: isEditing ? BorderSide(color: Colors.redAccent, width: 2) : BorderSide.none
