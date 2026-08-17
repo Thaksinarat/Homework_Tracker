@@ -1,6 +1,16 @@
-# finalproject
+# 📚 Homework Tracker
 
-A new Flutter project.
+ระบบติดตามการบ้านที่พัฒนาด้วย **Flutter** รองรับหลายแพลตฟอร์ม (Android, iOS, Web, Windows, macOS, Linux)
+
+---
+
+## 🚀 Features
+- เพิ่ม / ลบ / แก้ไขงานการบ้าน
+- กำหนดวันครบกำหนด (Due date)
+- แสดงรายการงานที่ยังไม่เสร็จ
+- รองรับการใช้งานบนหลายแพลตฟอร์ม
+
+---
 
 ## Getting Started
 
